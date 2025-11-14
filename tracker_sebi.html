@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CB Grade A Class Tracker — Single File</title>
+  <!-- React + Babel for in-browser JSX -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root{--bg:#eef2ff;--card:#ffffff;--primary:#4f46e5;--green:#059669;--muted:#6b7280}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);}
+    .container{padding:24px;min-height:100vh}
+    .card{background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);padding:18px}
+    .row{display:flex;gap:12px;align-items:center}
+    input[type="text"]{padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;flex:1}
+    button{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+    .btn-primary{background:var(--primary);color:white}
+    .btn-add{background:var(--green);color:white}
+    .small-btn{padding:6px 8px;border-radius:6px}
+    .muted{color:var(--muted)}
+    .subject{padding:14px 0;border-bottom:1px solid #eef2ff}
+    .progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+    .progress > div{height:100%;background:linear-gradient(90deg,#10b981,#059669);transition:width 220ms}
+    @media print{.no-print{display:none!important}} 
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    /* Small inline SVG icon components — avoids external icon libs that behaved differently in CDN */
+    const IconPrinter = ({size=18}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9V3h12v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><rect x="6" y="13" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 17h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+    const IconPlus = ({size=14}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+    const IconMinus = ({size=14}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+    const IconTrash = ({size=18}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+    const IconPlusCircle = ({size=18}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/><path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    );
+
+    function ClassTracker(){
+      const [subjects, setSubjects] = useState([
+        { name: 'English', held: 1, watched: 0 },
+        { name: 'Verbal Reasoning', held: 9, watched: 3 },
+        { name: 'Constitution', held: 10, watched: 6 },
+        { name: 'Finance and Management', held: 3, watched: 3 },
+        { name: 'Economics', held: 9, watched: 8 },
+        { name: 'Commerce and Accounting', held: 3, watched: 3 }
+      ]);
+
+      const [newSubjectName, setNewSubjectName] = useState('');
+
+      const updateValue = (index, field, delta) => {
+        setSubjects(prev => {
+          const updated = prev.map(s => ({...s}));
+          const newValue = Math.max(0, (updated[index][field]||0) + delta);
+          // prevent watched > held
+          if (field === 'watched' && newValue > updated[index].held) return prev;
+          if (field === 'held' && newValue < updated[index].watched) {
+            updated[index].watched = newValue;
+          }
+          updated[index][field] = newValue;
+          return updated;
+        });
+      };
+
+      const addSubject = () => {
+        const name = (newSubjectName||'').trim();
+        if(!name) return;
+        setSubjects(prev => [...prev, {name, held:0, watched:0}]);
+        setNewSubjectName('');
+      };
+
+      const removeSubject = (index) => setSubjects(prev => prev.filter((_,i)=>i!==index));
+
+      const totalHeld = subjects.reduce((s,x)=>s+x.held,0);
+      const totalWatched = subjects.reduce((s,x)=>s+x.watched,0);
+      const completionRate = totalHeld>0 ? ((totalWatched/totalHeld)*100).toFixed(1) : '0.0';
+
+      return (
+        <div className="container">
+          <div className="card" style={{maxWidth:920,margin:'0 auto'}}>
+            <div className="row no-print" style={{justifyContent:'space-between'}}>
+              <h1 style={{margin:0}}>CB Grade A Class Tracker</h1>
+              <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                <button className="btn-primary small-btn" onClick={()=>window.print()} title="Print">
+                  <IconPrinter/> Print
+                </button>
+              </div>
+            </div>
+
+            <p className="muted">Update your class progress and print to paste on your study table</p>
+
+            <div className="row no-print" style={{marginBottom:12}}>
+              <input type="text" placeholder="Enter new subject name..." value={newSubjectName} onChange={e=>setNewSubjectName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') addSubject();}} />
+              <button className="btn-add" onClick={addSubject}><IconPlusCircle/> Add Subject</button>
+            </div>
+
+            <div style={{background:'#f8fafc',padding:12,borderRadius:8,display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:20,fontWeight:700,color: 'var(--primary)'}}>{totalHeld}</div>
+                <div className="muted">Total Classes</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:20,fontWeight:700,color: 'var(--green)'}}>{totalWatched}</div>
+                <div className="muted">Classes Watched</div>
+              </div>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:20,fontWeight:700,color:'#7c3aed'}}>{completionRate}%</div>
+                <div className="muted">Completion</div>
+              </div>
+            </div>
+
+            <div>
+              {subjects.map((sub, idx)=> (
+                <div className="subject" key={idx}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div>
+                      <h3 style={{margin:'0 0 6px 0'}}>{sub.name}</h3>
+                      <div className="muted">Progress: {sub.held>0?Math.round((sub.watched/sub.held)*100):0}%</div>
+                    </div>
+                    <div className="no-print" style={{display:'flex',gap:8,alignItems:'center'}}>
+                      <button onClick={()=>removeSubject(idx)} className="small-btn" title="Remove subject" style={{color:'#dc2626',background:'transparent'}}><IconTrash/></button>
+                    </div>
+                  </div>
+
+                  <div style={{display:'flex',gap:16,marginTop:12,flexWrap:'wrap'}}>
+                    <div style={{flex:1,minWidth:200}}>
+                      <div className="muted">Classes Held</div>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6}}>
+                        <div style={{fontSize:22,fontWeight:700,color:'#2563eb'}}>{sub.held}</div>
+                        <div className="no-print" style={{display:'flex',gap:6}}>
+                          <button className="small-btn" onClick={()=>updateValue(idx,'held',1)} title="Increase held"><IconPlus/></button>
+                          <button className="small-btn" onClick={()=>updateValue(idx,'held',-1)} title="Decrease held"><IconMinus/></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{flex:1,minWidth:200}}>
+                      <div className="muted">Classes Watched</div>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6}}>
+                        <div style={{fontSize:22,fontWeight:700,color:'#059669'}}>{sub.watched}</div>
+                        <div className="no-print" style={{display:'flex',gap:6}}>
+                          <button className="small-btn" onClick={()=>updateValue(idx,'watched',1)} disabled={sub.watched>=sub.held} title="Increase watched"><IconPlus/></button>
+                          <button className="small-btn" onClick={()=>updateValue(idx,'watched',-1)} title="Decrease watched"><IconMinus/></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{flex:'1 1 100%'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
+                        <div className="muted">Progress</div>
+                        <div className="muted">{sub.held>0?Math.round((sub.watched/sub.held)*100):0}%</div>
+                      </div>
+                      <div className="progress" style={{marginTop:6}}>
+                        <div style={{width: `${sub.held>0? (sub.watched/sub.held)*100 : 0}%`}}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{textAlign:'center',marginTop:14,color: 'var(--muted)'}}>Keep tracking your progress! 📚 Stay consistent with your studies! 💪</div>
+
+          </div>
+
+          <style>{`@media print{ .no-print{display:none!important} body{background:white} @page{margin:0.5cm} }`}</style>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<ClassTracker />);
+  </script>
+</body>
+</html>
